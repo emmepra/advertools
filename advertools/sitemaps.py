@@ -515,6 +515,7 @@ def sitemap_to_df(sitemap_url, max_workers=8, recursive=True, last_N_days=False)
                 else:
                     if 'lastmod' in els.keys() and last_N_days:
                         sitemap_dt = pd.to_datetime(els['lastmod']).date()
+                        print(f'here 1 {sitemap_dt}, {dt_thres}')
                         if sitemap_dt >= dt_thres:
                             sitemap_url_list.append(els['loc'].text)
                     else:
