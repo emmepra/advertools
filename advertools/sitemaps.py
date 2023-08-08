@@ -450,7 +450,7 @@ def _parse_sitemap(root):
     return pd.DataFrame(d.values())
 
 
-def sitemap_to_df(sitemap_url, max_workers=8, recursive=True, last_N_days=False):
+def sitemap_to_df(sitemap_url, last_N_days=None, max_workers=8, recursive=True):
     """
     Retrieve all URLs and other available tags of a sitemap(s) and put them in
     a DataFrame.
@@ -478,8 +478,9 @@ def sitemap_to_df(sitemap_url, max_workers=8, recursive=True, last_N_days=False)
                         ``priority``, or others found in news, video, or image
                         sitemaps).
     """
+    
     if sitemap_url.endswith('robots.txt'):
-        return pd.concat([sitemap_to_df(sitemap, recursive=recursive)
+        return pd.concat([sitemap_to_df(sitemap, recursive=recursive, last_N_days=last_N_days)
                           for sitemap in _sitemaps_from_robotstxt(sitemap_url)],
                          ignore_index=True)
     if sitemap_url.endswith('xml.gz'):
@@ -498,14 +499,13 @@ def sitemap_to_df(sitemap_url, max_workers=8, recursive=True, last_N_days=False)
     sitemap_df = pd.DataFrame()
     
     if last_N_days:
-        dt_thres = datetime.datetime.now().date() - datetime.timedelta(days=int(last_N_days))
-        print(f'here 0 {dt_thres}')
-
+        dt_thres = datetime.datetime.now().date() - datetime.timedelta(days=last_N_days)
+        
     if (root.tag.split('}')[-1] == 'sitemapindex') and recursive:
         multi_sitemap_df = pd.DataFrame()
         sitemap_url_list = []
         for elem in root:
-            els = {el.split('}')[-1]:el for el in elem} # crea dizionario con 'loc' e 'lastmod' e tutti gli altri tag se presenti
+            els = {el.tag.split('}')[-1]:el for el in elem} # crea dizionario con 'loc' e 'lastmod' e tutti gli altri tag se presenti
                
             if 'loc' in els.keys(): # seleziona ogni url nella sitemap e verifica se punta a se stessa
                 if els['loc'].text == sitemap_url:
@@ -517,18 +517,16 @@ def sitemap_to_df(sitemap_url, max_workers=8, recursive=True, last_N_days=False)
                         [multi_sitemap_df, error_df], ignore_index=True)
                 else:
                     if 'lastmod' in els.keys() and last_N_days:
-                        sitemap_dt = pd.to_datetime(els['lastmod']).date()
-                        print(f'here 1 {sitemap_dt}, {dt_thres}')
+                        sitemap_dt = pd.to_datetime(els['lastmod'].text).date()
                         if sitemap_dt >= dt_thres:
                             sitemap_url_list.append(els['loc'].text)
                     else:
-                        print('here 2')
                         sitemap_url_list.append(els['loc'].text)
                             
         with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             to_do = []
             for sitemap in sitemap_url_list:
-                future = executor.submit(sitemap_to_df, sitemap)
+                future = executor.submit(sitemap_to_df, sitemap, last_N_days)
                 to_do.append(future)
             done_iter = futures.as_completed(to_do)
             for future in done_iter:
