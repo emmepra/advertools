@@ -496,7 +496,10 @@ def sitemap_to_df(sitemap_url, max_workers=8, recursive=True, last_N_days=False)
     root = ElementTree.fromstring(xml_string)
 
     sitemap_df = pd.DataFrame()
-    dt_thres = datetime.datetime.now().date() - datetime.timedelta(days=int(last_N_days))
+    
+    if last_N_days:
+        dt_thres = datetime.datetime.now().date() - datetime.timedelta(days=int(last_N_days))
+        print(f'here 0 {dt_thres}')
 
     if (root.tag.split('}')[-1] == 'sitemapindex') and recursive:
         multi_sitemap_df = pd.DataFrame()
@@ -519,6 +522,7 @@ def sitemap_to_df(sitemap_url, max_workers=8, recursive=True, last_N_days=False)
                         if sitemap_dt >= dt_thres:
                             sitemap_url_list.append(els['loc'].text)
                     else:
+                        print('here 2')
                         sitemap_url_list.append(els['loc'].text)
                             
         with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
